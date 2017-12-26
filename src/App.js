@@ -13,11 +13,12 @@ class App extends Component {
 	createWS = ( token ) =>{
 		return new WS(`ws://api.staging.iqlang.local?accessToken=${token}&clientID=123`, 'iqlang-app', null);
 	};
+	rpcid = 0;
 	
 	connect = token =>{
 		try {
 			this.socket = this.createWS(token);
-			this.socket.onopen = function( openEvent ){
+			this.socket.onopen = ( openEvent )=>{
 				this.setState({
 					wsOpen: true,
 					msg: 'Соединение установленно'
@@ -39,19 +40,27 @@ class App extends Component {
 			})
 		};
 		this.socket.onmessage = ( messageEvent ) =>{
-			
 			if ( !messageEvent.data instanceof Blob ) {
-				this.setState({msg: messageEvent.data})
+				const res = JSON.parse(messageEvent.data);
+				if ( res.method === 'service.pong' ) this.setState({msg: res.payload ? res.payload : 'PONG'})
+				
 			}
-			
 		};
 	};
+	send = ( id = this.rpcid + 1, method, payload = {} ) =>{
+		this.socket.send(JSON.stringify({
+			id,
+			method,
+			payload
+		}));
+	};
 	sendPing = () =>{
-		this.socket.send('ping');
+		this.send({
+			method: 'service.ping'
+		});
 	};
 	startPinging = () =>{
-		if (this.state.wsOpen === true) this.pingInterval = setInterval(this.sendPing, 1000);
-		
+		if ( this.state.wsOpen === true ) this.pingInterval = setInterval(this.sendPing, 1000);
 	};
 	
 	stopPinging = () =>{
